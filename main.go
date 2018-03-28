@@ -17,6 +17,20 @@ import (
 var (
 	logFileName = flag.String("log", "/var/log/ffmpeg.log", "Log file name")
 )
+
+func exec_shell(s string) {
+	cmd := exec.Command(s, "-i", "/root/go/src/resource/mp3/1522215547.m4a 2>&1 | grep 'Duration' | cut -d ' ' -f 4 | sed s/,// ")
+	var out bytes.Buffer
+
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s", out.String())
+}
+
+
 func main() {
 	logFile, logErr := os.OpenFile(*logFileName, os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
 	if logErr != nil {
@@ -25,6 +39,9 @@ func main() {
 	}
 	log.SetOutput(logFile)
 	log.Printf("start ")
+
+	//exec_shell("/root/go/src/ffmpeg-git-20180314-64bit-static/ffmpeg -i /root/go/src/resource/mp3/1522215547.m4a 2>&1 | grep 'Duration' | cut -d ' ' -f 4 | sed s/,// ")
+	exec_shell("/root/go/src/ffmpeg-git-20180314-64bit-static/ffmpeg")
 
 	db,err := OpenConnection()
 	if err!=nil{
@@ -38,14 +55,14 @@ func main() {
 	///root/go/src/resource/mp3
 	file := "/root/go/src/resource/mp3/"+strings.Replace(*(chapters[38].URL),"http://tingting-resource.bitekun.xin/resource/mp3/","",-1)
 	fmt.Println("file is",file)
-	c := exec.Command("/root/go/src/ffmpeg-git-20180314-64bit-static/ffmpeg","-i", file, "2>&1 | grep 'Duration' | cut -d ' ' -f 4 | sed s/,//")
+	c := exec.Command("/root/go/src/ffmpeg-git-20180314-64bit-static/ffmpeg","-i", file, "/root/go/src/resource/mp3/"+"test123.mp3")
 	error:= c.Run()
 	if error!=nil{
 		fmt.Println("error: ",error.Error())
 	}
 	buf := new(bytes.Buffer)
-	c.Stderr = buf
-	fmt.Println("result is",string(buf.Bytes()))
+	c.Stdout = buf
+	fmt.Printf("%s", buf.String())
 
 
 
