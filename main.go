@@ -12,6 +12,9 @@ import (
 	"os/exec"
 	"strings"
 	"bytes"
+	"github.com/vansante/go-ffprobe"
+	"time"
+	"encoding/json"
 )
 
 var (
@@ -40,8 +43,9 @@ func main() {
 	log.SetOutput(logFile)
 	log.Printf("start ")
 
+
 	//exec_shell("/root/go/src/ffmpeg-git-20180314-64bit-static/ffmpeg -i /root/go/src/resource/mp3/1522215547.m4a 2>&1 | grep 'Duration' | cut -d ' ' -f 4 | sed s/,// ")
-	exec_shell("/root/go/src/ffmpeg-git-20180314-64bit-static/ffmpeg")
+	//exec_shell("/root/go/src/ffmpeg-git-20180314-64bit-static/ffmpeg")
 
 	db,err := OpenConnection()
 	if err!=nil{
@@ -51,22 +55,84 @@ func main() {
 
 	var chapters []Chapter
 	db.Raw("select * from chapters").Find(&chapters)
-	fmt.Println("name is",chapters[38].Name)
+	//fmt.Println("name is",chapters[38].Name)
 	///root/go/src/resource/mp3
-	file := "/root/go/src/resource/mp3/"+strings.Replace(*(chapters[38].URL),"http://tingting-resource.bitekun.xin/resource/mp3/","",-1)
-	fmt.Println("file is",file)
-	c := exec.Command("/root/go/src/ffmpeg-git-20180314-64bit-static/ffmpeg","-i", file, "/root/go/src/resource/mp3/"+"test123.mp3")
-	error:= c.Run()
-	if error!=nil{
-		fmt.Println("error: ",error.Error())
+	for k:=0;k<len(chapters) ;k++  {
+		file := "/root/go/src/resource/mp3/"+strings.Replace(*(chapters[k].URL),"http://tingting-resource.bitekun.xin/resource/mp3/","",-1)
+		fmt.Println("file is",file)
+		path := file
+		data, err := ffprobe.GetProbeData(path, 1000 * time.Millisecond)
+		if err != nil {
+			continue
+			//log.Panicf("Error getting data: %v", err)
+			fmt.Println("err3 is",err.Error())
+		}
+
+		//buf, err := json.MarshalIndent(data, "", "  ")
+		//fmt.Print(string(buf))
+
+		buf, err := json.MarshalIndent(data.GetFirstAudioStream(), "", "  ")
+		if err != nil{
+			continue
+			fmt.Println("err1 is",err.Error())
+		}
+		log.Println(string(buf))
+
+		fmt.Println("duration is",data.Format.DurationSeconds)
+		db.Exec("update chapters set duration=? where id=?",data.Format.DurationSeconds,chapters[k].Id)
 	}
-	buf := new(bytes.Buffer)
+
+	//fmt.Printf("\nDuration: %v\n", data.Format.Duration())
+	//fmt.Printf("\nStartTime: %v\n", data.Format.StartTime())
+	/*c := exec.Command("/root/go/src/ffmpeg-git-20180314-64bit-static/ffprobe", file)
+	//c := exec.Command("root/go/src/ffmpeg-git-20180314-64bit-static/ffmpeg", "-i", "/root/go/src/resource/mp3/1522215547.m4a" ,"2>&1", "|", "grep 'Duration' | cut -d ' ' -f 4 | sed s/,//")
+	out,err := c.CombinedOutput()
+	if err!= nil{
+		fmt.Println("err is",err.Error())
+	}
+	log.Println("out is ",string(out))*/
+    // 解析出Duration字段
+
+	/*if error!=nil{
+		fmt.Println("error: ",error.Error())
+	}*/
+	/*buf := new(bytes.Buffer)
 	c.Stdout = buf
-	fmt.Printf("%s", buf.String())
+	fmt.Printf("%s", buf.String())*/
 
 
 
 
+
+	/**
+	ffmpeg version N-45325-gb173e0353-static https://johnvansickle.com/ffmpeg/  Copyright (c) 2000-2018 the FFmpeg developers
+  built with gcc 6.3.0 (Debian 6.3.0-18+deb9u1) 20170516
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-debug --disable-ffplay --disable-indev=sndio --disable-outdev=sndio --cc=gcc-6 --enable-fontconfig --enable-frei0r --enable-gnutls --enable-gray --enable-libfribidi --enable-libass --enable-libfreetype --enable-libmp3lame --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenjpeg --enable-librubberband --enable-libsoxr --enable-libspeex --enable-libvorbis --enable-libopus --enable-libtheora --enable-libvidstab --enable-libvo-amrwbenc --enable-libvpx --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libzimg
+  libavutil      56.  9.100 / 56.  9.100
+  libavcodec     58. 14.100 / 58. 14.100
+  libavformat    58. 10.100 / 58. 10.100
+  libavdevice    58.  2.100 / 58.  2.100
+  libavfilter     7. 13.100 /  7. 13.100
+  libswscale      5.  0.102 /  5.  0.102
+  libswresample   3.  0.101 /  3.  0.101
+  libpostproc    55.  0.100 / 55.  0.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '/root/go/src/resource/mp3/1520209590.m4a':
+  Metadata:
+    major_brand     : M4A
+    minor_version   : 512
+    compatible_brands: isomiso2
+    title           : 1ˀ½芏خ´𘮴󶅓µ±§
+    artist          : [bbs.12fou.com]
+    album           : µݗӹ嚢bs.12fou.com]
+    encoder         : Lavf55.19.100
+    comment         : 12·񷺍¯؊ԴÛ̳[bbs.12fou.com
+  Duration: 00:04:55.01, start: 0.000000, bitrate: 97 kb/s
+    Stream #0:0(und): Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, stereo, fltp, 95 kb/s (default)
+    Metadata:
+      handler_name    : SoundHandler
+At least one output file must be specified
+
+	 */
 }
 
 
