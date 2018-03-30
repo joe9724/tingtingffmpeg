@@ -53,34 +53,40 @@ func main() {
 	}
 	defer db.Close()
 
-	var chapters []Chapter
-	db.Raw("select * from chapters").Find(&chapters)
-	//fmt.Println("name is",chapters[38].Name)
-	///root/go/src/resource/mp3
-	for k:=0;k<len(chapters) ;k++  {
-		file := "/root/go/src/resource/mp3/"+strings.Replace(*(chapters[k].URL),"http://tingting-resource.bitekun.xin/resource/mp3/","",-1)
-		fmt.Println("file is",file)
-		path := file
-		data, err := ffprobe.GetProbeData(path, 1000 * time.Millisecond)
-		if err != nil {
-			continue
-			//log.Panicf("Error getting data: %v", err)
-			fmt.Println("err3 is",err.Error())
+	ticker := time.NewTicker(600 * time.Second)
+	for _= range ticker.C{
+		fmt.Println(time.Now())
+		var chapters []Chapter
+		db.Raw("select * from chapters where duration=100000").Find(&chapters)
+		//fmt.Println("name is",chapters[38].Name)
+		///root/go/src/resource/mp3
+		for k:=0;k<len(chapters) ;k++  {
+			file := "/root/go/src/resource/mp3/"+strings.Replace(*(chapters[k].URL),"http://tingting-resource.bitekun.xin/resource/mp3/","",-1)
+			fmt.Println("file is",file)
+			path := file
+			data, err := ffprobe.GetProbeData(path, 1000 * time.Millisecond)
+			if err != nil {
+				continue
+				//log.Panicf("Error getting data: %v", err)
+				fmt.Println("err3 is",err.Error())
+			}
+
+			//buf, err := json.MarshalIndent(data, "", "  ")
+			//fmt.Print(string(buf))
+
+			buf, err := json.MarshalIndent(data.GetFirstAudioStream(), "", "  ")
+			if err != nil{
+				continue
+				fmt.Println("err1 is",err.Error())
+			}
+			log.Println(string(buf))
+
+			fmt.Println("duration is",data.Format.DurationSeconds)
+			db.Exec("update chapters set duration=? where id=?",data.Format.DurationSeconds,chapters[k].Id)
 		}
-
-		//buf, err := json.MarshalIndent(data, "", "  ")
-		//fmt.Print(string(buf))
-
-		buf, err := json.MarshalIndent(data.GetFirstAudioStream(), "", "  ")
-		if err != nil{
-			continue
-			fmt.Println("err1 is",err.Error())
-		}
-		log.Println(string(buf))
-
-		fmt.Println("duration is",data.Format.DurationSeconds)
-		db.Exec("update chapters set duration=? where id=?",data.Format.DurationSeconds,chapters[k].Id)
 	}
+
+
 
 	//fmt.Printf("\nDuration: %v\n", data.Format.Duration())
 	//fmt.Printf("\nStartTime: %v\n", data.Format.StartTime())
